@@ -47,6 +47,7 @@ func main() {
 		fmt.Print(err)
 	}
 	defer dbP.Close()*/
+	
 	//получаем посты
 	var dataPosts = []Posts{}
 
