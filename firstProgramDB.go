@@ -42,7 +42,7 @@ func GetComments(postId int, c chan Comments, wg *sync.WaitGroup) {
 
 func main() {
 	/*dbP, err := sql.Open("mysql",
-		"root:Graffiti97@/post")
+		"root:password@/post")
 	if err != nil {
 		fmt.Print(err)
 	}
