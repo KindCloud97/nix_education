@@ -12,33 +12,22 @@ import (
 	//_ "github.com/go-sql-driver/mysql"
 )
 
-var url string = "https://jsonplaceholder.typicode.com"
-
-func GetComments(postId int, c chan Comments, wg *sync.WaitGroup) {
-	time.Sleep(time.Second)
-	var dataComments = []Comments{}
-
-	resp, err := http.Get(url + "/comments?postId=" + strconv.Itoa(postId))
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	jsonErr := json.Unmarshal(body, &dataComments)
-	if jsonErr != nil {
-		fmt.Println(jsonErr)
-	}
-
-	for elem := range dataComments {
-		c <- dataComments[elem]
-	}
-	wg.Done()
+type Posts struct {
+	UserId int    `json:"userId"`
+	Id     int    `json:"id"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
 }
+
+type Comments struct {
+	PostId int    `json:"postId"`
+	Id     int    `json:"id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Body   string `json:"body"`
+}
+
+var url string = "https://jsonplaceholder.typicode.com"
 
 func main() {
 	/*dbP, err := sql.Open("mysql",
@@ -78,7 +67,7 @@ func main() {
 		}(elem)
 	}
 	//закрываем канал после записи всех комментов
-	go func() { //?????????
+	go func() { 
 		wg.Wait()
 		close(c)
 	}()
@@ -92,17 +81,29 @@ func main() {
 
 }
 
-type Posts struct {
-	UserId int    `json:"userId"`
-	Id     int    `json:"id"`
-	Title  string `json:"title"`
-	Body   string `json:"body"`
-}
 
-type Comments struct {
-	PostId int    `json:"postId"`
-	Id     int    `json:"id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	Body   string `json:"body"`
+func GetComments(postId int, c chan Comments, wg *sync.WaitGroup) {
+	time.Sleep(time.Second)
+	var dataComments = []Comments{}
+
+	resp, err := http.Get(url + "/comments?postId=" + strconv.Itoa(postId))
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	jsonErr := json.Unmarshal(body, &dataComments)
+	if jsonErr != nil {
+		fmt.Println(jsonErr)
+	}
+
+	for elem := range dataComments {
+		c <- dataComments[elem]
+	}
+	wg.Done()
 }
