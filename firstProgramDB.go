@@ -9,8 +9,11 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
 	//_ "github.com/go-sql-driver/mysql"
 )
+
+const url string = "https://jsonplaceholder.typicode.com"
 
 type Posts struct {
 	UserId int    `json:"userId"`
@@ -27,17 +30,7 @@ type Comments struct {
 	Body   string `json:"body"`
 }
 
-var url string = "https://jsonplaceholder.typicode.com"
-
-func main() {
-	/*dbP, err := sql.Open("mysql",
-		"root:password@/post")
-	if err != nil {
-		fmt.Print(err)
-	}
-	defer dbP.Close()*/
-	
-	//получаем посты
+func GetPosts() []Posts {
 	var dataPosts = []Posts{}
 
 	resp, err := http.Get(url + "/posts?userId=7")
@@ -53,37 +46,12 @@ func main() {
 
 	jsonErr := json.Unmarshal(body, &dataPosts)
 	if jsonErr != nil {
-		fmt.Println(jsonErr)
+		panic(jsonErr)
 	}
-	////получаем комменты и записываем посты в бд
-	c := make(chan Comments, 100)
-	var wg sync.WaitGroup
-	for _, elem := range dataPosts {
-		wg.Add(1)
-		go GetComments(elem.Id, c, &wg)
-		go func(post Posts) {
-			time.Sleep(time.Millisecond)
-			fmt.Println("[WriteToDB--Posts]\t", post)
-		}(elem)
-	}
-	//закрываем канал после записи всех комментов
-	go func() { 
-		wg.Wait()
-		close(c)
-	}()
-	//записываем комменты в бд
-	for elem := range c {
-		go func(comment Comments) {
-			time.Sleep(time.Millisecond)
-			fmt.Println("[WriteToDB--Comments]\t", comment)
-		}(elem)
-	}
-
+	return dataPosts
 }
 
-
 func GetComments(postId int, c chan Comments, wg *sync.WaitGroup) {
-	time.Sleep(time.Second)
 	var dataComments = []Comments{}
 
 	resp, err := http.Get(url + "/comments?postId=" + strconv.Itoa(postId))
@@ -99,11 +67,41 @@ func GetComments(postId int, c chan Comments, wg *sync.WaitGroup) {
 
 	jsonErr := json.Unmarshal(body, &dataComments)
 	if jsonErr != nil {
-		fmt.Println(jsonErr)
+		panic(jsonErr)
 	}
 
 	for elem := range dataComments {
 		c <- dataComments[elem]
 	}
+	time.Sleep(time.Second * 2)
 	wg.Done()
+}
+
+func main() {
+	var dataPosts = GetPosts()
+	chanComm := make(chan Comments)
+
+	var wg sync.WaitGroup
+	for _, elem := range dataPosts {
+		wg.Add(1)
+
+		go GetComments(elem.Id, chanComm, &wg)
+
+		go func(post Posts) {
+			time.Sleep(time.Millisecond)
+			fmt.Println("[WriteToDB--Posts]\t", post.Id)
+		}(elem)
+	}
+
+	go func() {
+		wg.Wait()
+		close(chanComm)
+	}()
+
+	for elem := range chanComm {
+		go func(comment Comments) {
+			time.Sleep(time.Millisecond)
+			fmt.Println("[WriteToDB--Comments]\t", comment.PostId)
+		}(elem)
+	}
 }
