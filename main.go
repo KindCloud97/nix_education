@@ -51,7 +51,7 @@ func GetPosts() []Posts {
 	return dataPosts
 }
 
-func GetComments(postId int, c chan Comments, wg *sync.WaitGroup) {
+func GetComments(postId int) []Comments{
 	var dataComments = []Comments{}
 
 	resp, err := http.Get(url + "/comments?postId=" + strconv.Itoa(postId))
@@ -70,11 +70,9 @@ func GetComments(postId int, c chan Comments, wg *sync.WaitGroup) {
 		panic(jsonErr)
 	}
 
-	for elem := range dataComments {
-		c <- dataComments[elem]
-	}
 	time.Sleep(time.Second * 2)
-	wg.Done()
+	return dataComments
+
 }
 
 func main() {
@@ -85,7 +83,13 @@ func main() {
 	for _, elem := range dataPosts {
 		wg.Add(1)
 
-		go GetComments(elem.Id, chanComm, &wg)
+		go func(post Posts) {
+			dataComments := GetComments(post.Id)
+			for _, elem := range dataComments {
+				chanComm <- elem
+			}
+			wg.Done()
+		}(elem)
 
 		go func(post Posts) {
 			time.Sleep(time.Millisecond)
